@@ -161,7 +161,7 @@ public class QueueController {
     }
 
 
-    @PostMapping
+    @PostMapping("/cadastroFuncionario")
     public CompletableFuture<ResponseEntity<?>> cadastrarFuncionario(@RequestBody Cadastramento cadastramento){
 
         return CompletableFuture.supplyAsync( () -> {
