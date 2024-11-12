@@ -3,6 +3,8 @@ package com.ddaaniel.queue.controller;
 import com.ddaaniel.queue.domain.model.*;
 import com.ddaaniel.queue.domain.model.dto.EspecialistaRecordDtoResponce;
 import com.ddaaniel.queue.domain.model.dto.RecordDtoAgendamento;
+import com.ddaaniel.queue.domain.model.enuns.StatusAgendamento;
+import com.ddaaniel.queue.domain.repository.AgendamentoRepositry;
 import com.ddaaniel.queue.domain.repository.ContaRepository;
 import com.ddaaniel.queue.domain.repository.EspecialistaRepository;
 import com.ddaaniel.queue.domain.repository.PacienteRepository;
@@ -53,6 +55,9 @@ public class QueueController {
 
     @Autowired
     private CadastramentoService cadastramentoService;
+
+    @Autowired
+    private AgendamentoRepositry agendamentoRepositry;
 
     @PostMapping("/agendar")
     public CompletableFuture<ResponseEntity<String>>
@@ -190,4 +195,54 @@ public class QueueController {
 
     }
 
+    @GetMapping("/pegarAgendamentos")
+    public List<Agendamento> getAgendaamentosByCodigoCodigo(@RequestParam String codigoCodigo) {
+
+        return agendamentoService.getAllAgendamentosByCodigoCodigo(codigoCodigo);
+
+    }
+
+    @PutMapping("/marcarPresenca")
+    public CompletableFuture<ResponseEntity<?>> marcandoPresenca(
+            @RequestParam String codigoCodigo,
+           @RequestParam Long id_agendamento /*DEVE RECEBER O VALOR ESCOLHIDO DE /pegarAgendamentos*/){
+
+        return CompletableFuture.supplyAsync( () -> {
+
+            var paciente = pacienteRepository.findByCodigoCodigo(codigoCodigo);
+
+            if (paciente.isPresent()) {
+                Paciente objPaciente = paciente.get();
+
+                Optional<Agendamento> agendamento = agendamentoRepositry.findById(id_agendamento);
+                Agendamento objAgendamento = agendamento.get();
+
+                objAgendamento.setStatus(StatusAgendamento.EM_ATENDIMENTO);
+
+                agendamentoRepositry.save(objAgendamento);
+
+                if (!objPaciente.getPresencaConfirmado()) {
+                    objPaciente.setPresencaConfirmado(true);
+
+                    // Salva a alteração no banco de dados
+                    pacienteRepository.save(objPaciente);
+
+                    return ResponseEntity.status(HttpStatus.OK)
+                            .body("Sua presença foi confirmada com Sucesso!");
+                } else {
+                    return ResponseEntity.status(HttpStatus.NO_CONTENT)
+                            .body("Sua presença na fila já foi confirmada.");
+                }
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body("Paciente não encontrado.");
+            }
+
+        }, asyncExecutor);
+
+    }
+
+
+    // EndPoint que irá trazer todos os Agendamento/Pacientes na fila que estao
+    // sendo atendidos, ou seja possuem irão ser mostrados os que possuem Status EM_AGENDAMENTO.
 }

@@ -51,7 +51,7 @@ public class Paciente{
     //private Consulta consulta_desejada;
 
 
-    private Boolean presencaConfirmado;
+    private Boolean presencaConfirmado = false;
 
     private LocalDateTime dataHoraChegada;
 
