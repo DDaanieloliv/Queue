@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.validator.constraints.br.CPF;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -52,6 +53,7 @@ public class Paciente{
 
 
     private Boolean presencaConfirmado = false;
+
 
     private LocalDateTime dataHoraChegada;
 

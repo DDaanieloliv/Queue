@@ -1,9 +1,11 @@
 package com.ddaaniel.queue.controller;
 
 import com.ddaaniel.queue.domain.model.*;
+import com.ddaaniel.queue.domain.model.dto.AgendamentoDTO;
 import com.ddaaniel.queue.domain.model.dto.EspecialistaRecordDtoResponce;
 import com.ddaaniel.queue.domain.model.dto.RecordDtoAgendamento;
 import com.ddaaniel.queue.domain.model.enuns.StatusAgendamento;
+import com.ddaaniel.queue.domain.model.enuns.TipoEspecialista;
 import com.ddaaniel.queue.domain.repository.AgendamentoRepositry;
 import com.ddaaniel.queue.domain.repository.ContaRepository;
 import com.ddaaniel.queue.domain.repository.EspecialistaRepository;
@@ -15,8 +17,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.Optional;
+import java.time.LocalDateTime;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
@@ -196,7 +198,7 @@ public class QueueController {
     }
 
     @GetMapping("/pegarAgendamentos")
-    public List<Agendamento> getAgendaamentosByCodigoCodigo(@RequestParam String codigoCodigo) {
+    public List<AgendamentoDTO> getAgendaamentosByCodigoCodigo(@RequestParam String codigoCodigo) {
 
         return agendamentoService.getAllAgendamentosByCodigoCodigo(codigoCodigo);
 
@@ -217,12 +219,13 @@ public class QueueController {
                 Optional<Agendamento> agendamento = agendamentoRepositry.findById(id_agendamento);
                 Agendamento objAgendamento = agendamento.get();
 
-                objAgendamento.setStatus(StatusAgendamento.EM_ATENDIMENTO);
+                objAgendamento.setStatus(StatusAgendamento.EM_ESPERA);
 
                 agendamentoRepositry.save(objAgendamento);
 
                 if (!objPaciente.getPresencaConfirmado()) {
                     objPaciente.setPresencaConfirmado(true);
+                    objPaciente.setDataHoraChegada(LocalDateTime.now());
 
                     // Salva a alteração no banco de dados
                     pacienteRepository.save(objPaciente);
@@ -244,5 +247,115 @@ public class QueueController {
 
 
     // EndPoint que irá trazer todos os Agendamento/Pacientes na fila que estao
-    // sendo atendidos, ou seja possuem irão ser mostrados os que possuem Status EM_AGENDAMENTO.
+    // sendo atendidos, ou seja possuem irão ser mostrados os que possuem Status EM_ESPERA.
+
+/*
+    @GetMapping("/primeiroPacientePorEspecialidade")
+    public ResponseEntity<Map<TipoEspecialista, String>> getPrimeiroPacientePorEspecialidade() {
+        Map<TipoEspecialista, String> primeiroPacientePorEspecialidade = new HashMap<>();
+
+        for (TipoEspecialista tipoEspecialista : TipoEspecialista.values()) {
+            List<Agendamento> agendamentosPorEspecialidade = agendamentoRepositry.findAllByEspecialista_TipoEspecialistaAndStatusAndPaciente_PresencaConfirmado(
+                    tipoEspecialista, StatusAgendamento.EM_ESPERA, true);
+
+            Optional<Agendamento> primeiroAgendamento = agendamentosPorEspecialidade.stream()
+                    .sorted(Comparator.comparingInt((Agendamento a) -> a.getPaciente().getPrioridade().getPrioridade())
+                            .thenComparing(a -> a.getDataAgendamento()))  // Ajuste para campo correto
+                    .findFirst();
+
+            primeiroAgendamento.ifPresent(agendamento ->
+                    primeiroPacientePorEspecialidade.put(tipoEspecialista, agendamento.getPaciente().getNomeCompleto())
+            );
+        }
+
+        return ResponseEntity.ok(primeiroPacientePorEspecialidade);
+    }
+*/
+
+    @GetMapping("/primeiroPacienteOdontologo")
+    public ResponseEntity<Map<String, Object>> getPrimeiroPacienteOdontologo() {
+        return ResponseEntity.ok(getPrimeiroPacientePorEspecialidade(TipoEspecialista.ODONTOLOGO));
+    }
+
+    @GetMapping("/primeiroPacienteOrtopedista")
+    public ResponseEntity<Map<String, Object>> getPrimeiroPacienteOrtopedista() {
+        return ResponseEntity.ok(getPrimeiroPacientePorEspecialidade(TipoEspecialista.ORTOPEDISTA));
+    }
+
+    @GetMapping("/primeiroPacienteCardiologista")
+    public ResponseEntity<Map<String, Object>> getPrimeiroPacienteCardiologista() {
+        return ResponseEntity.ok(getPrimeiroPacientePorEspecialidade(TipoEspecialista.CARDIOLOGISTA));
+    }
+
+    // Método auxiliar para obter os pacientes por especialidade
+    private Map<String, Object> getPrimeiroPacientePorEspecialidade(TipoEspecialista tipoEspecialista) {
+        Map<String, Object> pacienteInfo = new HashMap<>();
+
+        // Paciente em espera
+        List<Agendamento> agendamentosEmEspera = agendamentoRepositry
+                .findAllByEspecialista_TipoEspecialistaAndStatusAndPaciente_PresencaConfirmado(
+                        tipoEspecialista, StatusAgendamento.EM_ESPERA, true);
+
+        Optional<Agendamento> primeiroEmEspera = agendamentosEmEspera.stream()
+                .sorted(Comparator.comparingInt((Agendamento a) ->
+                                a.getPaciente().getPrioridade().getPrioridade())
+                        .thenComparing(Agendamento::getDataAgendamento))
+                .findFirst();
+
+        // Paciente em atendimento
+        List<Agendamento> agendamentosEmAtendimento = agendamentoRepositry
+                .findAllByEspecialista_TipoEspecialistaAndStatusAndPaciente_PresencaConfirmado(
+                        tipoEspecialista, StatusAgendamento.EM_ATENDIMENTO, true);
+
+        Optional<Agendamento> primeiroEmAtendimento = agendamentosEmAtendimento.stream()
+                .findFirst();
+
+        // Dados do paciente em espera (ou null se não houver)
+        pacienteInfo.put("PacienteEmEspera", primeiroEmEspera.map(agendamento -> {
+            Map<String, String> esperaInfo = new HashMap<>();
+            esperaInfo.put("Nome", agendamento.getPaciente().getNomeCompleto());
+            esperaInfo.put("Status", agendamento.getStatus().name());
+            return esperaInfo;
+        }).orElse(null));
+
+        // Dados do paciente em atendimento (ou null se não houver)
+        pacienteInfo.put("PacienteEmAtendimento", primeiroEmAtendimento.map(agendamento -> {
+            Map<String, String> atendimentoInfo = new HashMap<>();
+            atendimentoInfo.put("Nome", agendamento.getPaciente().getNomeCompleto());
+            atendimentoInfo.put("Status", agendamento.getStatus().name());
+            return atendimentoInfo;
+        }).orElse(null));
+
+        return pacienteInfo;
+    }
+
+
+
+    @GetMapping("/contagemOdontologo")
+    public ResponseEntity<Map<String, Integer>> getContagemOdontologo() {
+        return ResponseEntity.ok(contarPacientesPorEspecialidade(TipoEspecialista.ODONTOLOGO));
+    }
+
+    @GetMapping("/contagemOrtopedista")
+    public ResponseEntity<Map<String, Integer>> getContagemOrtopedista() {
+        return ResponseEntity.ok(contarPacientesPorEspecialidade(TipoEspecialista.ORTOPEDISTA));
+    }
+
+    @GetMapping("/contagemCardiologista")
+    public ResponseEntity<Map<String, Integer>> getContagemCardiologista() {
+        return ResponseEntity.ok(contarPacientesPorEspecialidade(TipoEspecialista.CARDIOLOGISTA));
+    }
+
+    // Método auxiliar para contar os pacientes em espera por especialidade
+    private Map<String, Integer> contarPacientesPorEspecialidade(TipoEspecialista tipoEspecialista) {
+        int contagem = agendamentoRepositry.countByEspecialista_TipoEspecialistaAndStatus(
+                tipoEspecialista, StatusAgendamento.EM_ESPERA);
+
+        // Criar JSON de resposta com a contagem
+        Map<String, Integer> contagemResponse = new HashMap<>();
+        contagemResponse.put("QuantidadePacientesEmEspera", contagem);
+
+        return contagemResponse;
+    }
+
 }

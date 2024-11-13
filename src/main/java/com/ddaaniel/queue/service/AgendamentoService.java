@@ -3,6 +3,7 @@ package com.ddaaniel.queue.service;
 import com.ddaaniel.queue.domain.model.Agendamento;
 import com.ddaaniel.queue.domain.model.Especialista;
 import com.ddaaniel.queue.domain.model.Paciente;
+import com.ddaaniel.queue.domain.model.dto.AgendamentoDTO;
 import com.ddaaniel.queue.domain.model.dto.RecordDtoAgendamento;
 import com.ddaaniel.queue.domain.repository.AgendamentoRepositry;
 import com.ddaaniel.queue.domain.repository.EspecialistaRepository;
@@ -43,7 +44,7 @@ public class AgendamentoService {
     }
 
 
-    public List<Agendamento> getAllAgendamentosByCodigoCodigo(String codigoCodigo) {
+    public List<AgendamentoDTO> getAllAgendamentosByCodigoCodigo(String codigoCodigo) {
         Optional<Paciente> pacienteOpt = pacienteRepository.findByCodigoCodigo(codigoCodigo);
 
         if (pacienteOpt.isEmpty()) {
@@ -53,6 +54,7 @@ public class AgendamentoService {
         Paciente paciente = pacienteOpt.get();
         LocalDate today = LocalDate.now();
 
+        /*
         // Filtra os agendamentos pela data
         List<Agendamento> agendamentosDeHoje = paciente.getAgendamentos().stream()
                 .filter(agendamento -> agendamento.getDataAgendamento().equals(today))
@@ -60,5 +62,19 @@ public class AgendamentoService {
 
 
         return agendamentosDeHoje;
+        */
+
+        return paciente.getAgendamentos().stream()
+                .filter(agendamento -> agendamento.getDataAgendamento().equals(today))
+                .map(agendamento -> new AgendamentoDTO(
+                        agendamento.getId(),
+                        agendamento.getPaciente().getNomeCompleto(),
+                        agendamento.getEspecialista().getNome(),
+                        agendamento.getDataAgendamento(),
+                        agendamento.getHoraAgendamento(),
+                        agendamento.getStatus().name()
+                ))
+                .collect(Collectors.toList());
     }
+
 }
