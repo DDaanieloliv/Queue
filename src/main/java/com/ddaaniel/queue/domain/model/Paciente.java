@@ -66,7 +66,7 @@ public class Paciente{
 
     @Enumerated(EnumType.STRING)
     //@NotNull(message = "{campo.categoriaTriagem.obrigatorio}")
-    private Prioridade prioridade;
+    private Prioridade prioridade = Prioridade.NENHUM;
 
     @Enumerated(EnumType.STRING)
     private Role role = Role.PACIENTE;

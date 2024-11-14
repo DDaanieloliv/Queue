@@ -13,6 +13,8 @@ public interface ContaRepository extends JpaRepository<Conta, Long> {
 
     Optional<Conta> findByRoleEnum(Role role);
 
+    Optional<Conta> findByPassword(String password);
+
     //Optional<Conta> findByCodigoCodigoo(String codigoCodigo);
 
     //Optional<Conta> findByEmail(String email);

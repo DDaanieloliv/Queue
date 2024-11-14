@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 @NoArgsConstructor
@@ -29,6 +30,8 @@ public class Agendamento {
     private LocalDate dataAgendamento;
 
     private LocalTime horaAgendamento;
+
+    private LocalDateTime dataHoraChegada;
 
     @Enumerated(EnumType.STRING)
     private StatusAgendamento status = StatusAgendamento.AGUARDANDO_CONFIRMACAO;

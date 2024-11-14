@@ -6,10 +6,7 @@ import com.ddaaniel.queue.domain.model.dto.EspecialistaRecordDtoResponce;
 import com.ddaaniel.queue.domain.model.dto.RecordDtoAgendamento;
 import com.ddaaniel.queue.domain.model.enuns.StatusAgendamento;
 import com.ddaaniel.queue.domain.model.enuns.TipoEspecialista;
-import com.ddaaniel.queue.domain.repository.AgendamentoRepositry;
-import com.ddaaniel.queue.domain.repository.ContaRepository;
-import com.ddaaniel.queue.domain.repository.EspecialistaRepository;
-import com.ddaaniel.queue.domain.repository.PacienteRepository;
+import com.ddaaniel.queue.domain.repository.*;
 import com.ddaaniel.queue.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -46,6 +43,7 @@ public class QueueController {
     @Autowired
     private EspecialistaService especialistaService;
 
+
     @Autowired
     private ContaService contaService;
 
@@ -54,6 +52,9 @@ public class QueueController {
 
     @Autowired
     private ContaRepository contaRepository;
+
+    @Autowired
+    private CadastramentoRepository cadastramentoRepository;
 
     @Autowired
     private CadastramentoService cadastramentoService;
@@ -144,6 +145,33 @@ public class QueueController {
             @RequestParam String email,
             @RequestParam String password ) {
 
+        return CompletableFuture.supplyAsync(() -> {
+
+            // Busca nas três entidades pelo códigoCodigo
+            Optional<Paciente> pacienteOpt = pacienteRepository.findByCodigoCodigo(password);
+            Optional<Cadastramento> cadastramentoOpt = cadastramentoRepository.findByCodigoCodigo(password);
+            Optional<Conta> contaOpt = contaRepository.findByPassword(password);
+
+            // Verifica se encontrou o registro e se o email corresponde
+            if (pacienteOpt.isPresent() && email.equals(pacienteOpt.get().getEmail())) {
+                return ResponseEntity.ok(pacienteOpt.get().getRole());
+            } else if (cadastramentoOpt.isPresent() && email.equals(cadastramentoOpt.get().getEmail())) {
+                return ResponseEntity.ok(cadastramentoOpt.get().getRole());
+            } else if (contaOpt.isPresent() && email.equals(contaOpt.get().getLogin())) {
+                return ResponseEntity.ok(contaOpt.get().getRoleEnum());
+            } else {
+                // Se nenhum dos registros corresponder, retorna uma mensagem de erro e status 401 Unauthorized
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body("Email ou senha incorretos.");
+            }
+
+        }, asyncExecutor);
+    }
+    /*
+    public CompletableFuture<ResponseEntity<?>> getRoleByLogin(
+            @RequestParam String email,
+            @RequestParam String password ) {
+
         return CompletableFuture.supplyAsync( () -> {
 
             var pacienteWithCodigoCodigo = pacienteRepository
@@ -154,9 +182,11 @@ public class QueueController {
             Optional<Paciente> paciente = pacienteRepository
                     .findByCodigoCodigo(password);
 
-            if (!pacienteWithCodigoCodigo.isEmpty() && !emailOf.isEmpty()) {
+            Paciente objetoPaciente = paciente.get();
 
-                Paciente objetoPaciente = paciente.get();
+            if (!pacienteWithCodigoCodigo.isEmpty() && email == objetoPaciente.getEmail()) {
+
+                //Paciente objetoPaciente = paciente.get();
                 return ResponseEntity.ok(objetoPaciente.getRole());
             } else {
                 // Retorna mensagem de erro e status 401 Unauthorized
@@ -166,6 +196,7 @@ public class QueueController {
 
         }, asyncExecutor);
     }
+    */
 
 
     @PostMapping("/cadastroFuncionario")
@@ -220,7 +251,7 @@ public class QueueController {
                 Agendamento objAgendamento = agendamento.get();
 
                 objAgendamento.setStatus(StatusAgendamento.EM_ESPERA);
-
+                objAgendamento.setDataHoraChegada(LocalDateTime.now());
                 agendamentoRepositry.save(objAgendamento);
 
                 if (!objPaciente.getPresencaConfirmado()) {
@@ -332,17 +363,17 @@ public class QueueController {
 
 
     @GetMapping("/contagemOdontologo")
-    public ResponseEntity<Map<String, Integer>> getContagemOdontologo() {
+    public ResponseEntity<Map<String, Integer>> getContagemOdontologoo() {
         return ResponseEntity.ok(contarPacientesPorEspecialidade(TipoEspecialista.ODONTOLOGO));
     }
 
     @GetMapping("/contagemOrtopedista")
-    public ResponseEntity<Map<String, Integer>> getContagemOrtopedista() {
+    public ResponseEntity<Map<String, Integer>> getContagemOrtopedistaa() {
         return ResponseEntity.ok(contarPacientesPorEspecialidade(TipoEspecialista.ORTOPEDISTA));
     }
 
     @GetMapping("/contagemCardiologista")
-    public ResponseEntity<Map<String, Integer>> getContagemCardiologista() {
+    public ResponseEntity<Map<String, Integer>> getContagemCardiologistaa() {
         return ResponseEntity.ok(contarPacientesPorEspecialidade(TipoEspecialista.CARDIOLOGISTA));
     }
 
@@ -358,4 +389,189 @@ public class QueueController {
         return contagemResponse;
     }
 
+
+    /**
+     * Endpoint para buscar o primeiro paciente para Odontologia.
+     */
+    @PutMapping("/primeiroPacienteOdontologia")
+    public CompletableFuture<ResponseEntity<?>> getPrimeiroPacienteOdontologia() {
+        return getPrimeiroPacientePorEspecialidadee(TipoEspecialista.ODONTOLOGO);
+    }
+
+    /**
+     * Endpoint para buscar o primeiro paciente para Ortopedia.
+     */
+    @PutMapping("/primeiroPacienteOrtopedia")
+    public CompletableFuture<ResponseEntity<?>> getPrimeiroPacienteOrtopedia() {
+        return getPrimeiroPacientePorEspecialidadee(TipoEspecialista.ORTOPEDISTA);
+    }
+
+    /**
+     * Endpoint para buscar o primeiro paciente para Cardiologia.
+     */
+    @PutMapping("/primeiroPacienteCardiologia")
+    public CompletableFuture<ResponseEntity<?>> getPrimeiroPacienteCardiologia() {
+        return getPrimeiroPacientePorEspecialidadee(TipoEspecialista.CARDIOLOGISTA);
+    }
+
+    /**
+     * Método auxiliar para obter o primeiro paciente para o tipo de especialista.
+     */
+    private CompletableFuture<ResponseEntity<?>> getPrimeiroPacientePorEspecialidadee(TipoEspecialista tipoEspecialista) {
+        return CompletableFuture.supplyAsync(() -> {
+            // Busca os agendamentos em espera para o tipo de especialista e com presença confirmada
+            List<Agendamento> agendamentos = agendamentoRepositry
+                    .findAllByEspecialista_TipoEspecialistaAndStatusAndPaciente_PresencaConfirmado(
+                            tipoEspecialista, StatusAgendamento.EM_ESPERA, true);
+
+            // Ordena por prioridade e data de chegada, e pega o primeiro da lista
+            Optional<Agendamento> primeiroAgendamento = agendamentos.stream()
+                    .sorted(Comparator
+                            .comparingInt((Agendamento a) -> a.getPaciente().getPrioridade().getPrioridade())
+                            .thenComparing(Agendamento::getDataHoraChegada))
+                    .findFirst();
+
+            if (primeiroAgendamento.isPresent()) {
+                // Muda o status do agendamento para EM_ATENDIMENTO
+                Agendamento agendamento = primeiroAgendamento.get();
+                agendamento.setStatus(StatusAgendamento.EM_ATENDIMENTO);
+                agendamentoRepositry.save(agendamento);
+
+                // Retorna as informações do paciente
+                Paciente paciente = agendamento.getPaciente();
+                Map<String, Object> pacienteInfo = new HashMap<>();
+                pacienteInfo.put("id", paciente.getId_paciente());
+                pacienteInfo.put("nome", paciente.getNomeCompleto());
+                pacienteInfo.put("prioridade", paciente.getPrioridade().getPrioridade());
+                pacienteInfo.put("horaChegada", paciente.getDataHoraChegada());
+                pacienteInfo.put("status", agendamento.getStatus());
+
+                return ResponseEntity.ok(pacienteInfo);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body("Nenhum paciente em espera para " + tipoEspecialista);
+            }
+        }, asyncExecutor);
+    }
+
+
+
+
+
+    /**
+     * Endpoint para buscar o primeiro paciente para Odontologia.
+     */
+    @PutMapping("/chamarPacienteOdontologia")
+    public CompletableFuture<ResponseEntity<?>> chamarPrimeiroPacienteOdontologia() {
+        return chamarPrimeiroPacientePorEspecialidade(TipoEspecialista.ODONTOLOGO);
+    }
+
+    /**
+     * Endpoint para buscar o primeiro paciente para Ortopedia.
+     */
+    @PutMapping("/chamarPacienteOrtopedia")
+    public CompletableFuture<ResponseEntity<?>> chamarPrimeiroPacienteOrtopedia() {
+        return chamarPrimeiroPacientePorEspecialidade(TipoEspecialista.ORTOPEDISTA);
+    }
+
+    /**
+     * Endpoint para buscar o primeiro paciente para Cardiologia.
+     */
+    @PutMapping("/chamarPacienteCardiologia")
+    public CompletableFuture<ResponseEntity<?>> chamarPrimeiroPacienteCardiologia() {
+        return chamarPrimeiroPacientePorEspecialidade(TipoEspecialista.CARDIOLOGISTA);
+    }
+
+    /**
+     * Método auxiliar para obter o primeiro paciente para o tipo de especialista.
+     */
+    private CompletableFuture<ResponseEntity<?>> chamarPrimeiroPacientePorEspecialidade(TipoEspecialista tipoEspecialista) {
+        return CompletableFuture.supplyAsync(() -> {
+            // Busca os agendamentos em espera para o tipo de especialista e com presença confirmada
+            List<Agendamento> agendamentos = agendamentoRepositry
+                    .findAllByEspecialista_TipoEspecialistaAndStatusAndPaciente_PresencaConfirmado(
+                            tipoEspecialista, StatusAgendamento.EM_ESPERA, true);
+
+            // Ordena por prioridade e data de chegada, e pega o primeiro da lista
+            Optional<Agendamento> primeiroAgendamento = agendamentos.stream()
+                    .sorted(Comparator
+                            .comparingInt((Agendamento a) -> a.getPaciente().getPrioridade().getPrioridade())
+                            .thenComparing(Agendamento::getDataHoraChegada))
+                    .findFirst();
+
+            if (primeiroAgendamento.isPresent()) {
+                // Muda o status do agendamento para EM_ATENDIMENTO
+                Agendamento agendamento = primeiroAgendamento.get();
+                agendamento.setStatus(StatusAgendamento.EM_ATENDIMENTO);
+                agendamentoRepositry.save(agendamento);
+
+                // Retorna as informações do paciente
+                Paciente paciente = agendamento.getPaciente();
+                Map<String, Object> pacienteInfo = new HashMap<>();
+                pacienteInfo.put("id", paciente.getId_paciente());
+                pacienteInfo.put("nome", paciente.getNomeCompleto());
+                pacienteInfo.put("sexo", paciente.getSexo());
+                pacienteInfo.put("prioridade", paciente.getPrioridade().getPrioridade());
+                pacienteInfo.put("horaChegada", paciente.getDataHoraChegada());
+                pacienteInfo.put("status", agendamento.getStatus());
+
+                return ResponseEntity.ok(pacienteInfo);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body("Nenhum paciente em espera para " + tipoEspecialista);
+            }
+        }, asyncExecutor);
+    }
+
+
+
+    /**
+     * Endpoint para adicionar uma observação ao prontuário de um paciente e marcar o agendamento como concluído.
+     *
+     * @param pacienteId ID do paciente cujo prontuário será atualizado.
+     * @param novaObservacao A nova observação a ser adicionada ao prontuário.
+     * @return ResponseEntity indicando o sucesso ou erro da operação.
+     */
+    @PutMapping("/adicionarObservacaoProntuario")
+    public ResponseEntity<String> adicionarObservacaoProntuario(
+            @RequestParam Long pacienteId,
+            @RequestParam String novaObservacao) {
+
+        // Busca o paciente pelo ID
+        Optional<Paciente> pacienteOpt = pacienteRepository.findById(pacienteId);
+
+        if (pacienteOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Paciente não encontrado.");
+        }
+
+        Paciente paciente = pacienteOpt.get();
+
+        // Atualiza o campo prontuario com a nova observação
+        String prontuarioAtualizado = paciente.getProntuario() == null
+                ? novaObservacao
+                : paciente.getProntuario() + "\n" + novaObservacao;
+
+        paciente.setProntuario(prontuarioAtualizado);
+
+        // Busca o agendamento do paciente que está em atendimento
+        Optional<Agendamento> agendamentoOpt = agendamentoRepositry
+                .findByPacienteAndStatus(paciente, StatusAgendamento.EM_ATENDIMENTO);
+
+        if (agendamentoOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Nenhum agendamento em atendimento encontrado para este paciente.");
+        }
+
+        Agendamento agendamento = agendamentoOpt.get();
+
+        // Atualiza o status do agendamento para CONCLUIDO
+        agendamento.setStatus(StatusAgendamento.CONCLUIDO);
+
+        // Salva as alterações no banco de dados
+        pacienteRepository.save(paciente);
+        agendamentoRepositry.save(agendamento);
+
+        return ResponseEntity.ok("Observação adicionada ao prontuário e agendamento concluído com sucesso.");
+    }
 }
