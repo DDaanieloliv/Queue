@@ -21,8 +21,8 @@ public class ContaService {
         //var emailOf = paciente.getEmail();
         Conta contaPacinte = new Conta(
                 paciente.getEmail(),
-                paciente.getCodigoCodigo()
-                );
+                paciente.getCodigoCodigo(),
+                Role.ESPECIALISTA);
 
         return contaPacinte;
     }

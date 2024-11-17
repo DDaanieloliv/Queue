@@ -23,7 +23,7 @@ public class AdminConfig implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) throws Exception {
-
+/*
         // Verificação e inserção de especialistas apenas se não existirem
         if (!especialistaExiste(1)) {
             jdbcTemplate.update("INSERT INTO especialista (id, nome, tipo_especialista) VALUES (1, 'Dr. João da Silva', 'ODONTOLOGO');");
@@ -57,6 +57,8 @@ public class AdminConfig implements CommandLineRunner {
             jdbcTemplate.update("INSERT INTO disponibilidade (especialista_id, data) VALUES (3, '2023-12-25');");
         }
 
+
+ */
         /*
         jdbcTemplate.update("INSERT INTO especialista (id, nome, tipo_especialista)\n" +
                 "VALUES \n" +
@@ -91,6 +93,7 @@ public class AdminConfig implements CommandLineRunner {
     }
 
 
+    /*
     // Método para verificar se o especialista já existe
     private boolean especialistaExiste(int id) {
         String sql = "SELECT COUNT(*) FROM especialista WHERE id = ?";
@@ -104,4 +107,6 @@ public class AdminConfig implements CommandLineRunner {
         Integer count = jdbcTemplate.queryForObject(sql, Integer.class, especialistaId, data);
         return count != null && count > 0;
     }
+
+     */
 }

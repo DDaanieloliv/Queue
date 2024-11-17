@@ -2,8 +2,9 @@ package com.ddaaniel.queue.service;
 
 import com.ddaaniel.queue.domain.model.Cadastramento;
 import com.ddaaniel.queue.domain.model.Conta;
-import com.ddaaniel.queue.domain.model.Paciente;
+import com.ddaaniel.queue.domain.model.enuns.Role;
 import com.ddaaniel.queue.domain.repository.CadastramentoRepository;
+import com.ddaaniel.queue.domain.repository.ContaRepository;
 import com.ddaaniel.queue.domain.repository.PacienteRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,9 @@ public class CadastramentoService {
     @Autowired
     private PacienteRepository pacienteRepository;
 
+    @Autowired
+    private ContaRepository contaRepository;
+
     public void cadastrando(Cadastramento cadastramento){
         String codigo;
         do {
@@ -32,7 +36,9 @@ public class CadastramentoService {
 
         Conta conta = new Conta(
                 cadastramento.getEmail(),
-                cadastramento.getCodigoCodigo());
+                cadastramento.getCodigoCodigo(), Role.ESPECIALISTA);
+
+        contaRepository.save(conta);
     }
 
     private boolean isCodigoUnico(String codigo) {

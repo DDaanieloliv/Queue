@@ -19,7 +19,7 @@ public class Agendamento {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(cascade = CascadeType.PERSIST) // Ou CascadeType.ALL, se quiser incluir todas as operações em cascata
+    @ManyToOne//(cascade = CascadeType.PERSIST) // Ou CascadeType.ALL, se quiser incluir todas as operações em cascata
     @JoinColumn(name = "paciente_id", nullable = false)
     private Paciente paciente;
 

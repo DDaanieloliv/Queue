@@ -3,7 +3,7 @@ package com.ddaaniel.queue.service;
 
 import com.ddaaniel.queue.domain.model.Agendamento;
 import com.ddaaniel.queue.domain.model.Paciente;
-import com.ddaaniel.queue.domain.repository.AgendamentoRepositry;
+import com.ddaaniel.queue.domain.repository.AgendamentoRepository;
 import com.ddaaniel.queue.domain.repository.PacienteRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -19,7 +19,7 @@ public class FilaDePacientesService {
     private PacienteRepository pacienteRepository;
 
     @Autowired
-    private AgendamentoRepositry agendamentoRepositry;
+    private AgendamentoRepository agendamentoRepository;
 
     // Adicionar paciente na fila (salva no banco de dados)
     public void adicionarAgendamento(Agendamento agendamento) {
@@ -32,11 +32,27 @@ public class FilaDePacientesService {
             codigo = paciente.getCodigoCodigo();
 
         } while (!isCodigoUnico(codigo));  // Verifica se é único
-        agendamentoRepositry.save(agendamento);
+        agendamentoRepository.save(agendamento);
     }
 
 
+    // Adicionar paciente na fila (salva no banco de dados) mantendo o atributo codigoCodigo que
+    // paciente ja possui.
+    public void adicionarAgendamentoo(Agendamento agendamento) {
+        //String codigo;
+        Paciente paciente = agendamento.getPaciente();
+        /*
+        do {
 
+            // Gera um código aleatório
+            paciente.gerarCodigoCodigo();
+            codigo = paciente.getCodigoCodigo();
+
+        } while (!isCodigoUnico(codigo));  // Verifica se é único
+        */
+        agendamentoRepository.save(agendamento);
+
+    }
 
 
     // Verifica se o código gerado é único no banco de dados

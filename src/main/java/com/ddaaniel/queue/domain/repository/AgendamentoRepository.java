@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface AgendamentoRepositry extends JpaRepository<Agendamento, Long> {
+public interface AgendamentoRepository extends JpaRepository<Agendamento, Long> {
 
     int countByEspecialista_TipoEspecialistaAndStatus(TipoEspecialista tipoEspecialista, StatusAgendamento status);
 
@@ -20,4 +20,10 @@ public interface AgendamentoRepositry extends JpaRepository<Agendamento, Long> {
     List<Agendamento> findAllByEspecialista_TipoEspecialistaAndStatusAndPaciente_PresencaConfirmado(TipoEspecialista tipoEspecialista, StatusAgendamento statusAgendamento, boolean b);
 
     Optional<Agendamento> findByPacienteAndStatus(Paciente paciente, StatusAgendamento statusAgendamento);
+
+    boolean existsByPacienteAndStatus(Paciente objPaciente, StatusAgendamento statusAgendamento);
+
+    List<Agendamento> findAllByEspecialista_IdAndStatusAndPaciente_PresencaConfirmado(Long idEspecialista, StatusAgendamento statusAgendamento, boolean b);
+
+    int countByEspecialista_IdAndStatus(Long especialistaId, StatusAgendamento statusAgendamento);
 }

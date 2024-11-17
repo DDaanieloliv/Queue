@@ -19,9 +19,14 @@ public class Conta {
     @Enumerated(EnumType.STRING)
     private Role roleEnum;
 
-    public Conta(String login, String password){
+    @OneToOne(mappedBy = "conta", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Especialista especialista; // Relacionamento com Especialista
+
+
+    public Conta(String login, String password, Role roleEnum){
         this.login = login;
         this.password = password;
+        this.roleEnum = roleEnum;
     }
 
     public Conta(){}
