@@ -1,5 +1,6 @@
 package com.ddaaniel.queue.service;
 
+import com.ddaaniel.queue.domain.Exception.EspecialistaNotFoundException;
 import com.ddaaniel.queue.domain.model.Conta;
 import com.ddaaniel.queue.domain.model.Indisponibilidade;
 import com.ddaaniel.queue.domain.model.Especialista;
@@ -31,7 +32,7 @@ public class EspecialistaService {
     public Especialista findByIdEspecialista(Long id_especialista){
 
         Especialista especialista = especialistaRepository.findById(id_especialista)
-                .orElseThrow(() -> new RuntimeException("Especialista não encontrado para o ID: " + id_especialista));
+                .orElseThrow(() -> new EspecialistaNotFoundException("Especialista não encontrado para o ID: " + id_especialista));
 
         return especialista;
     }

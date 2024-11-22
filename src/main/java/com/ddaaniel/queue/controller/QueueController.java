@@ -117,6 +117,8 @@ public class QueueController {
 
 
 
+
+
     @GetMapping("/pegarAgendamentos")
     @Operation(summary = "Taking all the scheduled schedules for today.")
     public List<AgendamentoDTO> getAgendaamentosByCodigoCodigo(@RequestParam String codigoCodigo) {
@@ -135,40 +137,50 @@ public class QueueController {
 
         return CompletableFuture.supplyAsync(() -> {
 
-            // Busca nas três entidades pelo códigoCodigo ou senha
             Optional<Paciente> pacienteOpt = pacienteRepository.findByCodigoCodigo(password);
             Optional<Cadastramento> cadastramentoOpt = cadastramentoRepository.findByCodigoCodigo(password);
             Optional<Conta> contaOpt = contaRepository.findByPassword(password);
 
-            // Verifica se encontrou o registro e se o emailOrCpf corresponde
             if (pacienteOpt.isPresent() && emailOrCpf.equals(pacienteOpt.get().getEmail())) {
-                return ResponseEntity.ok(pacienteOpt.get().getRole());
+                Paciente paciente = pacienteOpt.get();
+                Map<String, Object> response = new HashMap<>();
+                response.put("role", paciente.getRole());
+                response.put("idPaciente", paciente.getId_paciente());
+                return ResponseEntity.ok(response);
             } else if (cadastramentoOpt.isPresent() && emailOrCpf.equals(cadastramentoOpt.get().getEmail())) {
                 return ResponseEntity.ok(cadastramentoOpt.get().getRole());
             } else if (contaOpt.isPresent() && emailOrCpf.equals(contaOpt.get().getLogin())) {
                 Conta conta = contaOpt.get();
                 Role role = conta.getRoleEnum();
 
-                // Se a role for ESPECIALISTA, busca o especialista associado
                 if (role == Role.ESPECIALISTA) {
                     Especialista especialista = conta.getEspecialista();
                     if (especialista != null) {
-                        // Retorna a role e o ID do especialista
                         Map<String, Object> response = new HashMap<>();
                         response.put("role", role);
                         response.put("idEspecialista", especialista.getId());
                         return ResponseEntity.ok(response);
                     } else {
-                        // Caso a conta tenha role ESPECIALISTA, mas não esteja associada a um especialista
                         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                                 .body("Erro: Conta do especialista não associada a nenhum especialista.");
                     }
                 }
 
-                // Caso não seja ESPECIALISTA, retorna apenas a role
+                if (role == Role.PACIENTE) {
+                    Paciente paciente = conta.getPaciente();
+                    if (paciente != null) {
+                        Map<String, Object> response = new HashMap<>();
+                        response.put("role", role);
+                        response.put("idPaciente", paciente.getId_paciente());
+                        return ResponseEntity.ok(response);
+                    } else {
+                        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                .body("Erro: Conta do paciente não associada a nenhum paciente.");
+                    }
+                }
+
                 return ResponseEntity.ok(role);
             } else {
-                // Se nenhum dos registros corresponder, retorna uma mensagem de erro e status 401 Unauthorized
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body("Email ou senha incorretos.");
             }

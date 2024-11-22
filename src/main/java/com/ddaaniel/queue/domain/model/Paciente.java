@@ -51,6 +51,9 @@ public class Paciente{
     //@OneToMany(mappedBy = "paciente", cascade = CascadeType.ALL)
     //private Consulta consulta_desejada;
 
+    @OneToOne
+    @JoinColumn(name = "conta_id", unique = true) // Relacionamento com Conta
+    private Conta conta;
 
     private Boolean presencaConfirmado = false;
 

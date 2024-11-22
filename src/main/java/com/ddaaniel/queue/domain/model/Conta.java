@@ -22,6 +22,9 @@ public class Conta {
     @OneToOne(mappedBy = "conta", cascade = CascadeType.ALL, orphanRemoval = true)
     private Especialista especialista; // Relacionamento com Especialista
 
+    @OneToOne(mappedBy = "conta", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Paciente paciente; // Relacionamento com Paciente
+
 
     public Conta(String login, String password, Role roleEnum){
         this.login = login;
