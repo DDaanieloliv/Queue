@@ -21,7 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.mockito.Mockito.*;
 
 @WebMvcTest(EspecialistaController.class)  // Testa apenas o controlador
-public class EspecialistaControllerTest {
+public class EspecialistaControllerFunctionalTest {
 
     @Autowired
     private MockMvc mockMvc;

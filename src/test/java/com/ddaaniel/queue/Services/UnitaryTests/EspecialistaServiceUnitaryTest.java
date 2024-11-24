@@ -14,7 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 
 @ExtendWith(MockitoExtension.class)
-public class EspecialistaServiceTest {
+public class EspecialistaServiceUnitaryTest {
 
     @InjectMocks
     private EspecialistaService especialistaService;

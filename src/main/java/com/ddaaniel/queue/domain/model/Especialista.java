@@ -31,7 +31,7 @@ public class Especialista {
     @Enumerated(EnumType.STRING)
     private Sexo sexo;
 
-    @OneToMany(mappedBy = "especialista", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "especialista", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private List<Indisponibilidade> indisponibilidades = new ArrayList<>();  // Relacionamento com Indisponibilidade
 
     @OneToMany(mappedBy = "especialista", cascade = CascadeType.ALL)

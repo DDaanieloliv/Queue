@@ -105,11 +105,9 @@ public class QueueController {
             @RequestParam(name = "pageSize", defaultValue = "10") Integer pageSize) {
 
         return CompletableFuture.supplyAsync(() -> {
-
             Page<Especialista> especialistas = especialistaService.findAllEspecialistas(page, pageSize);
 
-            return especialistas
-                    .stream()
+            return especialistas.stream()
                     .map(EspecialistaRecordDtoResponce::new)
                     .collect(Collectors.toList());
         }, asyncExecutor);

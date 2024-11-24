@@ -38,9 +38,11 @@ public class EspecialistaService {
     }
 
 
+    // No especialistaService
     public Page<Especialista> findAllEspecialistas(int page, int pageSize) {
-        Pageable pageable = PageRequest.of(page, pageSize);
-        return especialistaRepository.findAll(pageable);
+        Page<Especialista> especialistas = especialistaRepository.findAll(PageRequest.of(page, pageSize));
+        especialistas.forEach(especialista -> especialista.getIndisponibilidades().size()); // Inicializa a coleção
+        return especialistas;
     }
 
     public void criarEspecialista(Especialista especialista) {

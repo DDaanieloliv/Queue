@@ -2,10 +2,8 @@ package com.ddaaniel.queue.domain.model.enuns;
 
 
 public enum Prioridade {
-    GRAVIDA(1), // Emergência
-    IDOSO(2),  // Urgência
-    PESSOA_DEFICIENTE(3),    // Pouca urgência
-    NENHUM(4);     // Não urgência
+    PESSOA_COM_ALGUMA_PRIORIDADE(1),
+    NENHUM(2);     // Não urgência
 
     private final int prioridade;
 
