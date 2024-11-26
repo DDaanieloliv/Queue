@@ -23,11 +23,19 @@ import static org.mockito.Mockito.*;
 @WebMvcTest(EspecialistaController.class)  // Testa apenas o controlador
 public class EspecialistaControllerFunctionalTest {
 
+    /*
+    Testa como o controlador responde a requisições HTTP simuladas.
+    Inclui a verificação do caminho completo de entrada e saída (requisição → lógica → resposta).
+    */
+
+
     @Autowired
     private MockMvc mockMvc;
+    // Dependencia que permite simular requisições.
 
     @MockBean
     private EspecialistaService especialistaService;
+    // Mock que será injetado no controllador.
 
     private Especialista especialista;
 
@@ -41,6 +49,7 @@ public class EspecialistaControllerFunctionalTest {
         especialista.setTipoEspecialista(TipoEspecialista.CARDIOLOGISTA);
         especialista.setSexo(Sexo.MASC);
     }
+    // Aqui configuramos o objeto especialista antes de cada teste.
 
     @Test
     void testGetEspecialistaById_Success() throws Exception {

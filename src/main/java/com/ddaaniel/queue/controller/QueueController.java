@@ -3,6 +3,7 @@ package com.ddaaniel.queue.controller;
 import com.ddaaniel.queue.domain.model.*;
 import com.ddaaniel.queue.domain.model.dto.AgendamentoDTO;
 import com.ddaaniel.queue.domain.model.dto.EspecialistaRecordDtoResponce;
+import com.ddaaniel.queue.domain.model.enuns.Prioridade;
 import com.ddaaniel.queue.domain.model.enuns.Role;
 import com.ddaaniel.queue.domain.model.enuns.StatusAgendamento;
 import com.ddaaniel.queue.domain.model.enuns.TipoEspecialista;
@@ -118,7 +119,7 @@ public class QueueController {
 
 
     @GetMapping("/pegarAgendamentos")
-    @Operation(summary = "Taking all the scheduled schedules for today.")
+    //@Operation(summary = "Taking all the scheduled schedules for today.")
     public List<AgendamentoDTO> getAgendaamentosByCodigoCodigo(@RequestParam String codigoCodigo) {
 
         return agendamentoService.getAllAgendamentosByCodigoCodigo(codigoCodigo);
@@ -193,7 +194,7 @@ public class QueueController {
             @RequestParam Long id_agendamento) {
 
         return CompletableFuture.supplyAsync(() -> {
-
+            // Busca o paciente pelo código
             var pacienteOpt = pacienteRepository.findByCodigoCodigo(codigoCodigo);
 
             if (pacienteOpt.isPresent()) {
@@ -206,27 +207,29 @@ public class QueueController {
                             .body("O paciente já possui um agendamento com o status EM_ESPERA.");
                 }
 
+                // Busca o agendamento pelo ID
                 Optional<Agendamento> agendamentoOpt = agendamentoRepository.findById(id_agendamento);
                 if (agendamentoOpt.isPresent()) {
                     Agendamento objAgendamento = agendamentoOpt.get();
 
-                    // Atualiza o status e data/hora de chegada
+                    if (objAgendamento.getStatus() != StatusAgendamento.AGUARDANDO_CONFIRMACAO) {
+                        throw new IllegalStateException("O agendamento não está em um estado válido para essa operação.");
+                    }
+
+                    // Atualiza o status do agendamento e o campo dataHoraChegada
                     objAgendamento.setStatus(StatusAgendamento.EM_ESPERA);
                     objAgendamento.setDataHoraChegada(LocalDateTime.now());
-                    agendamentoRepository.save(objAgendamento);
+                    agendamentoRepository.save(objAgendamento); // SALVA IMEDIATAMENTE O AGENDAMENTO
 
-                    // Confirma a presença do paciente, caso ainda não confirmada
+                    // Atualiza o paciente se necessário
                     if (!objPaciente.getPresencaConfirmado()) {
                         objPaciente.setPresencaConfirmado(true);
                         objPaciente.setDataHoraChegada(LocalDateTime.now());
-                        pacienteRepository.save(objPaciente);
-
-                        return ResponseEntity.status(HttpStatus.OK)
-                                .body("Sua presença foi confirmada com Sucesso!");
-                    } else {
-                        return ResponseEntity.status(HttpStatus.NO_CONTENT)
-                                .body("Sua presença na fila já foi confirmada.");
+                        pacienteRepository.save(objPaciente); // SALVA IMEDIATAMENTE O PACIENTE
                     }
+
+                    return ResponseEntity.status(HttpStatus.OK)
+                            .body("Sua presença foi confirmada com Sucesso!");
                 } else {
                     return ResponseEntity.status(HttpStatus.NOT_FOUND)
                             .body("Agendamento não encontrado.");
@@ -235,7 +238,6 @@ public class QueueController {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body("Paciente não encontrado.");
             }
-
         }, asyncExecutor);
     }
 
@@ -310,19 +312,89 @@ public class QueueController {
     }
 
 
+    @PutMapping("/chamarPaciente")
+    @Operation(summary = "Call the first patient in line with the status EM_ESPERA.")
+    public CompletableFuture<ResponseEntity<?>> chamarPaciente(@RequestParam Long idEspecialista) {
+        return chamarPrimeiroPacientePorEspecialista(idEspecialista);
+    }
+
+    private int prioridadeContador = 0; // Contador para alternância entre prioridades
+
+    private CompletableFuture<ResponseEntity<?>> chamarPrimeiroPacientePorEspecialista(Long idEspecialista) {
+        return CompletableFuture.supplyAsync(() -> {
+            // Busca todos os agendamentos em espera para o especialista com presença confirmada
+            List<Agendamento> agendamentos = agendamentoRepository
+                    .findAllByEspecialista_IdAndStatusAndPaciente_PresencaConfirmado(
+                            idEspecialista, StatusAgendamento.EM_ESPERA, true);
+
+            if (agendamentos.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body("Nenhum paciente em espera para o especialista com ID " + idEspecialista);
+            }
+
+            // Separamos pacientes com e sem prioridade
+            List<Agendamento> comPrioridade = agendamentos.stream()
+                    .filter(a -> a.getPaciente().getPrioridade() == Prioridade.PESSOA_COM_ALGUMA_PRIORIDADE)
+                    .sorted(Comparator.comparing(Agendamento::getDataHoraChegada))
+                    .toList();
+
+            List<Agendamento> semPrioridade = agendamentos.stream()
+                    .filter(a -> a.getPaciente().getPrioridade() == Prioridade.NENHUM)
+                    .sorted(Comparator.comparing(Agendamento::getDataHoraChegada))
+                    .toList();
+
+            // Seleciona o próximo paciente com base na alternância
+            Agendamento proximoAgendamento = null;
+
+            if (!comPrioridade.isEmpty() && (prioridadeContador < 2 || semPrioridade.isEmpty())) {
+                // Chama paciente com prioridade (máximo de 2 seguidos)
+                proximoAgendamento = comPrioridade.get(0);
+                prioridadeContador++;
+            } else if (!semPrioridade.isEmpty()) {
+                // Chama paciente sem prioridade
+                proximoAgendamento = semPrioridade.get(0);
+                prioridadeContador = 0; // Reseta o contador ao chamar um paciente sem prioridade
+            }
+
+            if (proximoAgendamento != null) {
+                // Atualiza o status do paciente para EM_ATENDIMENTO
+                proximoAgendamento.setStatus(StatusAgendamento.EM_ATENDIMENTO);
+                agendamentoRepository.save(proximoAgendamento);
+
+                // Retorna as informações do paciente escolhido
+                Paciente paciente = proximoAgendamento.getPaciente();
+                Map<String, Object> pacienteInfo = new HashMap<>();
+                pacienteInfo.put("id", paciente.getId_paciente());
+                pacienteInfo.put("nome", paciente.getNomeCompleto());
+                pacienteInfo.put("sexo", paciente.getSexo());
+                pacienteInfo.put("prioridade", paciente.getPrioridade().name());
+                pacienteInfo.put("horaChegada", paciente.getDataHoraChegada());
+                pacienteInfo.put("status", proximoAgendamento.getStatus());
+
+                return ResponseEntity.ok(pacienteInfo);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body("Nenhum paciente disponível para atendimento no momento.");
+            }
+        }, asyncExecutor);
+    }
+
 
     /**
      * Endpoint para chamar o próximo paciente baseado no ID do especialista.
      */
+    /*
     @PutMapping("/chamarPaciente")
     @Operation(summary = "Call the first patient in line with the staus EM_ESPERA.")
     public CompletableFuture<ResponseEntity<?>> chamarPaciente(@RequestParam Long idEspecialista) {
         return chamarPrimeiroPacientePorEspecialista(idEspecialista);
     }
+    */
 
     /**
      * Método auxiliar para buscar o próximo paciente para um especialista específico.
      */
+    /*
     private CompletableFuture<ResponseEntity<?>> chamarPrimeiroPacientePorEspecialista(Long idEspecialista) {
         return CompletableFuture.supplyAsync(() -> {
             // Busca os agendamentos em espera para o especialista específico e com presença confirmada
@@ -360,7 +432,7 @@ public class QueueController {
             }
         }, asyncExecutor);
     }
-
+    */
 
 
     /**

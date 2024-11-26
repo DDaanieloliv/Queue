@@ -20,6 +20,8 @@ import static org.mockito.Mockito.*;
 
 public class EspecialistaServicePerformanceTest {
 
+    // Metodo a ser testado é um findAll.
+
     @Mock
     private EspecialistaRepository especialistaRepository;
 

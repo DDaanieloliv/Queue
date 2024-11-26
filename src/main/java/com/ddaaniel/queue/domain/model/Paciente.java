@@ -74,7 +74,7 @@ public class Paciente{
     @Enumerated(EnumType.STRING)
     private Role role = Role.PACIENTE;
 
-    @OneToMany(mappedBy = "paciente", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "paciente", fetch = FetchType.EAGER)
     private List<Agendamento> agendamentos = new ArrayList<>();
 
 
