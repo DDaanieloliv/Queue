@@ -2,19 +2,21 @@ package com.ddaaniel.queue.controller;
 
 import com.ddaaniel.queue.domain.model.Agendamento;
 import com.ddaaniel.queue.domain.model.Paciente;
+import com.ddaaniel.queue.domain.model.enuns.Prioridade;
 import com.ddaaniel.queue.domain.model.enuns.StatusAgendamento;
 import com.ddaaniel.queue.domain.repository.AgendamentoRepository;
 import com.ddaaniel.queue.domain.repository.PacienteRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
+import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
-@RestController
+@Controller
 public class FilaWebSocketController {
 
     @Autowired
@@ -23,43 +25,59 @@ public class FilaWebSocketController {
     @Autowired
     private PacienteRepository pacienteRepository;
 
-    // Chamar o próximo paciente na fila para o especialista
-    @MessageMapping("/chamarPaciente")
-    @SendTo("/topic/pacienteChamada")
-    public Map<String, Object> chamarPaciente(Long idEspecialista) {
-        return chamarPrimeiroPacientePorEspecialista(idEspecialista).join();
-    }
+    private int prioridadeContador = 0; // Contador para alternância entre prioridades
 
-    private CompletableFuture<Map<String, Object>> chamarPrimeiroPacientePorEspecialista(Long idEspecialista) {
+    @MessageMapping("/chamarPaciente") // Rota que os clientes usarão para enviar mensagens
+    @SendTo("/topic/pacienteChamado") // Tópico para onde as respostas serão enviadas
+    public CompletableFuture<Map<String, Object>> chamarPacientePorEspecialista(Long idEspecialista) {
         return CompletableFuture.supplyAsync(() -> {
             List<Agendamento> agendamentos = agendamentoRepository
                     .findAllByEspecialista_IdAndStatusAndPaciente_PresencaConfirmado(
                             idEspecialista, StatusAgendamento.EM_ESPERA, true);
 
-            Optional<Agendamento> primeiroAgendamento = agendamentos.stream()
-                    .sorted(Comparator
-                            .comparingInt((Agendamento a) -> a.getPaciente().getPrioridade().getPrioridade())
-                            .thenComparing(Agendamento::getDataHoraChegada))
-                    .findFirst();
+            if (agendamentos.isEmpty()) {
+                Map<String, Object> resposta = new HashMap<>();
+                resposta.put("mensagem", "Nenhum paciente em espera para o especialista com ID " + idEspecialista);
+                return resposta;
+            }
 
-            if (primeiroAgendamento.isPresent()) {
-                Agendamento agendamento = primeiroAgendamento.get();
-                agendamento.setStatus(StatusAgendamento.EM_ATENDIMENTO);
-                agendamentoRepository.save(agendamento);
+            List<Agendamento> comPrioridade = agendamentos.stream()
+                    .filter(a -> a.getPaciente().getPrioridade() == Prioridade.PESSOA_COM_ALGUMA_PRIORIDADE)
+                    .sorted(Comparator.comparing(Agendamento::getDataHoraChegada))
+                    .toList();
 
-                Paciente paciente = agendamento.getPaciente();
+            List<Agendamento> semPrioridade = agendamentos.stream()
+                    .filter(a -> a.getPaciente().getPrioridade() == Prioridade.NENHUM)
+                    .sorted(Comparator.comparing(Agendamento::getDataHoraChegada))
+                    .toList();
+
+            Agendamento proximoAgendamento = null;
+
+            if (!comPrioridade.isEmpty() && (prioridadeContador < 2 || semPrioridade.isEmpty())) {
+                proximoAgendamento = comPrioridade.get(0);
+                prioridadeContador++;
+            } else if (!semPrioridade.isEmpty()) {
+                proximoAgendamento = semPrioridade.get(0);
+                prioridadeContador = 0;
+            }
+
+            if (proximoAgendamento != null) {
+                proximoAgendamento.setStatus(StatusAgendamento.EM_ATENDIMENTO);
+                agendamentoRepository.save(proximoAgendamento);
+
+                Paciente paciente = proximoAgendamento.getPaciente();
                 Map<String, Object> pacienteInfo = new HashMap<>();
                 pacienteInfo.put("id", paciente.getId_paciente());
                 pacienteInfo.put("nome", paciente.getNomeCompleto());
                 pacienteInfo.put("sexo", paciente.getSexo());
-                pacienteInfo.put("prioridade", paciente.getPrioridade().getPrioridade());
+                pacienteInfo.put("prioridade", paciente.getPrioridade().name());
                 pacienteInfo.put("horaChegada", paciente.getDataHoraChegada());
-                pacienteInfo.put("status", agendamento.getStatus());
-
+                pacienteInfo.put("status", proximoAgendamento.getStatus());
                 return pacienteInfo;
             } else {
-                return Map.of("status", "NOT_FOUND", "message",
-                        "Nenhum paciente em espera para o especialista com ID " + idEspecialista);
+                Map<String, Object> resposta = new HashMap<>();
+                resposta.put("mensagem", "Nenhum paciente disponível para atendimento no momento.");
+                return resposta;
             }
         });
     }
