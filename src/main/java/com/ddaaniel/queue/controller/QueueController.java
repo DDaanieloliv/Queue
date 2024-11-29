@@ -11,6 +11,7 @@ import com.ddaaniel.queue.domain.repository.*;
 import com.ddaaniel.queue.service.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -57,11 +58,11 @@ public class QueueController {
     @Autowired
     private ContaRepository contaRepository;
 
-    @Autowired
-    private CadastramentoRepository cadastramentoRepository;
+    //@Autowired
+    //private CadastramentoRepository cadastramentoRepository;
 
-    @Autowired
-    private CadastramentoService cadastramentoService;
+    //@Autowired
+    //private CadastramentoService cadastramentoService;
 
     @Autowired
     private AgendamentoRepository agendamentoRepository;
@@ -69,7 +70,7 @@ public class QueueController {
 
     @PostMapping("/criarEspecialista")
     @Operation(summary = "Create new Especialista / Médico.")
-    public CompletableFuture<ResponseEntity<?>> criarEspecialista(@RequestBody Especialista especialistaRequest) {
+    public CompletableFuture<ResponseEntity<?>> criarEspecialista(@Valid @RequestBody Especialista especialistaRequest) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 // Chama o serviço para criar o especialista
@@ -86,7 +87,7 @@ public class QueueController {
 
     @PostMapping("/agendar")
     @Operation(summary = "Creating scheduling and registering patient.")
-    public ResponseEntity<?> adicionarAgendamento(@RequestBody Agendamento agendamento) {
+    public ResponseEntity<?> adicionarAgendamento(@Valid @RequestBody Agendamento agendamento) {
         try {
             // Chama o serviço para processar o agendamento
             agendamentoService.adicionarAgendamento(agendamento);
@@ -137,7 +138,7 @@ public class QueueController {
         return CompletableFuture.supplyAsync(() -> {
 
             Optional<Paciente> pacienteOpt = pacienteRepository.findByCodigoCodigo(password);
-            Optional<Cadastramento> cadastramentoOpt = cadastramentoRepository.findByCodigoCodigo(password);
+           // Optional<Cadastramento> cadastramentoOpt = cadastramentoRepository.findByCodigoCodigo(password);
             Optional<Conta> contaOpt = contaRepository.findByPassword(password);
 
             if (pacienteOpt.isPresent() && emailOrCpf.equals(pacienteOpt.get().getEmail())) {
@@ -146,8 +147,8 @@ public class QueueController {
                 response.put("role", paciente.getRole());
                 response.put("idPaciente", paciente.getId_paciente());
                 return ResponseEntity.ok(response);
-            } else if (cadastramentoOpt.isPresent() && emailOrCpf.equals(cadastramentoOpt.get().getEmail())) {
-                return ResponseEntity.ok(cadastramentoOpt.get().getRole());
+            //} else if (cadastramentoOpt.isPresent() && emailOrCpf.equals(cadastramentoOpt.get().getEmail())) {
+            //    return ResponseEntity.ok(cadastramentoOpt.get().getRole());
             } else if (contaOpt.isPresent() && emailOrCpf.equals(contaOpt.get().getLogin())) {
                 Conta conta = contaOpt.get();
                 Role role = conta.getRoleEnum();

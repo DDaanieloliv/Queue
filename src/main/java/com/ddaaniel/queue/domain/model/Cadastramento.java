@@ -1,4 +1,4 @@
-package com.ddaaniel.queue.domain.model;
+/*package com.ddaaniel.queue.domain.model;
 
 import com.ddaaniel.queue.domain.model.enuns.Role;
 import com.ddaaniel.queue.domain.model.enuns.Sexo;
@@ -53,3 +53,5 @@ public class Cadastramento {
 
 }
 
+
+ */

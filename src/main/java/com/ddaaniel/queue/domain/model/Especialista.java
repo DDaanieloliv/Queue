@@ -3,8 +3,10 @@ package com.ddaaniel.queue.domain.model;
 
 import com.ddaaniel.queue.domain.model.enuns.Sexo;
 import com.ddaaniel.queue.domain.model.enuns.TipoEspecialista;
+import com.ddaaniel.queue.exception.validation.NotEmpty;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotEmpty;
+
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
@@ -19,18 +21,20 @@ public class Especialista {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotEmpty
+    @NotEmpty(message = "{campo.nomeCompleto.obrigatorio}")
     private String nome;
 
     @Enumerated(EnumType.STRING)
     @NotNull
     private TipoEspecialista tipoEspecialista;
 
+    @NotEmpty(message = "{campo.email.obrigatorio}")
     private String email;
 
     @Enumerated(EnumType.STRING)
     private Sexo sexo;
 
+    @Valid
     @OneToMany(mappedBy = "especialista", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private List<Indisponibilidade> indisponibilidades = new ArrayList<>();  // Relacionamento com Indisponibilidade
 

@@ -1,4 +1,4 @@
-package com.ddaaniel.queue.service;
+/*package com.ddaaniel.queue.service;
 
 import com.ddaaniel.queue.domain.model.Cadastramento;
 import com.ddaaniel.queue.domain.model.Conta;
@@ -62,3 +62,6 @@ public class CadastramentoService {
         return cadastramentoOpt.map(Cadastramento::getCodigoCodigo).orElse(null);
     }
 }
+
+
+ */

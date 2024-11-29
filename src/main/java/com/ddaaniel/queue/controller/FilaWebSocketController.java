@@ -1,10 +1,12 @@
 package com.ddaaniel.queue.controller;
 
 import com.ddaaniel.queue.domain.model.Agendamento;
+import com.ddaaniel.queue.domain.model.Especialista;
 import com.ddaaniel.queue.domain.model.Paciente;
 import com.ddaaniel.queue.domain.model.enuns.Prioridade;
 import com.ddaaniel.queue.domain.model.enuns.StatusAgendamento;
 import com.ddaaniel.queue.domain.repository.AgendamentoRepository;
+import com.ddaaniel.queue.domain.repository.EspecialistaRepository;
 import com.ddaaniel.queue.domain.repository.PacienteRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -21,6 +23,9 @@ public class FilaWebSocketController {
 
     @Autowired
     private AgendamentoRepository agendamentoRepository;
+
+    @Autowired
+    private EspecialistaRepository especialistaRepository;
 
     @Autowired
     private PacienteRepository pacienteRepository;
@@ -124,6 +129,73 @@ public class FilaWebSocketController {
 
         return pacienteInfo;
     }
+
+
+    @MessageMapping("/primeirosPacientesPorEspecialistas")
+    @SendTo("/topic/primeirosPacientesPorEspecialistaAtualizados")
+    public List<Map<String, Object>> getPrimeirosPacientes() {
+        return getPrimeirosPacientesPorEspecialistas();
+    }
+
+    private List<Map<String, Object>> getPrimeirosPacientesPorEspecialistas() {
+        List<Map<String, Object>> especialistasPacientesInfo = new ArrayList<>();
+
+        // Busca todos os especialistas cadastrados no sistema
+        List<Especialista> especialistas = especialistaRepository.findAll();
+
+        for (Especialista especialista : especialistas) {
+            Map<String, Object> especialistaInfo = new HashMap<>();
+            Map<String, Object> pacienteInfo = new HashMap<>();
+
+            Long especialistaId = especialista.getId();
+
+            // Buscar agendamentos com status EM_ESPERA para o especialista
+            List<Agendamento> agendamentosEmEspera = agendamentoRepository
+                    .findAllByEspecialista_IdAndStatusAndPaciente_PresencaConfirmado(
+                            especialistaId, StatusAgendamento.EM_ESPERA, true);
+
+            Optional<Agendamento> primeiroEmEspera = agendamentosEmEspera.stream()
+                    .sorted(Comparator.comparingInt((Agendamento a) ->
+                                    a.getPaciente().getPrioridade().getPrioridade())
+                            .thenComparing(Agendamento::getDataAgendamento))
+                    .findFirst();
+
+            // Buscar agendamentos com status EM_ATENDIMENTO para o especialista
+            List<Agendamento> agendamentosEmAtendimento = agendamentoRepository
+                    .findAllByEspecialista_IdAndStatusAndPaciente_PresencaConfirmado(
+                            especialistaId, StatusAgendamento.EM_ATENDIMENTO, true);
+
+            Optional<Agendamento> primeiroEmAtendimento = agendamentosEmAtendimento.stream().findFirst();
+
+            // Montar informações do paciente em espera
+            pacienteInfo.put("PacienteEmEspera", primeiroEmEspera.map(agendamento -> {
+                Map<String, String> esperaInfo = new HashMap<>();
+                esperaInfo.put("Nome", agendamento.getPaciente().getNomeCompleto());
+                esperaInfo.put("Status", agendamento.getStatus().name());
+                return esperaInfo;
+            }).orElse(null));
+
+            // Montar informações do paciente em atendimento
+            pacienteInfo.put("PacienteEmAtendimento", primeiroEmAtendimento.map(agendamento -> {
+                Map<String, String> atendimentoInfo = new HashMap<>();
+                atendimentoInfo.put("Nome", agendamento.getPaciente().getNomeCompleto());
+                atendimentoInfo.put("Status", agendamento.getStatus().name());
+                return atendimentoInfo;
+            }).orElse(null));
+
+            // Adicionar as informações do especialista ao mapa
+            especialistaInfo.put("EspecialistaId", especialistaId);
+            especialistaInfo.put("Nome", especialista.getNome());
+            especialistaInfo.put("TipoEspecialista", especialista.getTipoEspecialista().name());
+            especialistaInfo.put("Pacientes", pacienteInfo);
+
+            especialistasPacientesInfo.add(especialistaInfo);
+        }
+
+        return especialistasPacientesInfo;
+    }
+
+
 
     // Contar pacientes em espera
     @MessageMapping("/contagemEspecialista")

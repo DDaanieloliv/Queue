@@ -1,4 +1,4 @@
-package com.ddaaniel.queue.domain.repository;
+/*package com.ddaaniel.queue.domain.repository;
 
 import com.ddaaniel.queue.domain.model.Cadastramento;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,3 +12,6 @@ public interface CadastramentoRepository extends JpaRepository<Cadastramento,Lon
 
     Optional<Cadastramento> findByCodigoCodigo(String password);
 }
+
+
+ */

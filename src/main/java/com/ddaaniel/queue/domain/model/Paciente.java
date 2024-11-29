@@ -4,6 +4,7 @@ package com.ddaaniel.queue.domain.model;
 import com.ddaaniel.queue.domain.model.enuns.Prioridade;
 import com.ddaaniel.queue.domain.model.enuns.Role;
 import com.ddaaniel.queue.domain.model.enuns.Sexo;
+import com.ddaaniel.queue.exception.validation.NotEmpty;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -26,10 +27,10 @@ public class Paciente{
     private Long id_paciente;
 
     @Column(name = "nome_completo")
-    //@NotEmpty(message = "{campo.nomeCompleto.obrigatorio}")
+    @NotEmpty(message = "{campo.nomeCompleto.obrigatorio}")
     private String nomeCompleto;
 
-    //@NotEmpty(message = "{campo.dataNascimento.obrigatorio}")
+    @NotEmpty(message = "{campo.dataNascimento.obrigatorio}")
     private String dataNascimento;
 
     @Column(nullable = false, length = 1)
@@ -37,15 +38,16 @@ public class Paciente{
     private Sexo sexo;
 
     @Column(unique = true , nullable = false)
-    //@NotEmpty(message = "{campo.cpf.obrigatorio}")
+    @NotEmpty(message = "{campo.cpf.obrigatorio}")
     //@CPF(message = "{campo.cpf.invalido}")
     private String cpf;
 
     @Column(length = 255)
-    //@NotEmpty(message = "{campo.email.obrigatorio}")
+    @NotEmpty(message = "{campo.email.obrigatorio}")
     private String email;
 
     @Column(length = 20)
+    @NotEmpty(message = "{campo.telefone.obrigatorio}")
     private String telefone;
 
     //@OneToMany(mappedBy = "paciente", cascade = CascadeType.ALL)
@@ -61,14 +63,13 @@ public class Paciente{
     private LocalDateTime dataHoraChegada;
 
     private String prontuario;
-    //private Boolean triado;
 
     @Column(unique = true, length = 8) // Definindo como único e com tamanho de 8 caracteres
     private String codigoCodigo;
 
 
     @Enumerated(EnumType.STRING)
-    //@NotNull(message = "{campo.categoriaTriagem.obrigatorio}")
+    //@NotEmpty(message = "{campo.categoriaTriagem.obrigatorio}")
     private Prioridade prioridade = Prioridade.NENHUM;
 
     @Enumerated(EnumType.STRING)
