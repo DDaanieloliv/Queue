@@ -8,6 +8,7 @@ import com.ddaaniel.queue.domain.model.enuns.StatusAgendamento;
 import com.ddaaniel.queue.domain.repository.AgendamentoRepository;
 import com.ddaaniel.queue.domain.repository.EspecialistaRepository;
 import com.ddaaniel.queue.domain.repository.PacienteRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 @Controller
 public class FilaWebSocketController {
@@ -26,6 +28,8 @@ public class FilaWebSocketController {
 
     @Autowired
     private EspecialistaRepository especialistaRepository;
+
+    private Executor asyncExecutor;
 
     @Autowired
     private PacienteRepository pacienteRepository;
@@ -133,8 +137,10 @@ public class FilaWebSocketController {
 
     @MessageMapping("/primeirosPacientesPorEspecialistas")
     @SendTo("/topic/primeirosPacientesPorEspecialistaAtualizados")
-    public List<Map<String, Object>> getPrimeirosPacientes() {
-        return getPrimeirosPacientesPorEspecialistas();
+    public CompletableFuture<List<Map<String, Object>>> getPrimeirosPacientes() {
+        return CompletableFuture.supplyAsync( () -> {
+            return getPrimeirosPacientesPorEspecialistas();
+        }, asyncExecutor);
     }
 
     private List<Map<String, Object>> getPrimeirosPacientesPorEspecialistas() {
@@ -200,8 +206,10 @@ public class FilaWebSocketController {
     // Contar pacientes em espera
     @MessageMapping("/contagemEspecialista")
     @SendTo("/topic/contagemAtualizada")
-    public Map<String, Integer> getContagemPacientesPorEspecialista(Long especialistaId) {
-        return contarPacientesPorEspecialistaId(especialistaId);
+    public CompletableFuture<Map<String, Integer>> getContagemPacientesPorEspecialista(Long especialistaId) {
+        return CompletableFuture.supplyAsync( () -> {
+            return contarPacientesPorEspecialistaId(especialistaId);
+        }, asyncExecutor);
     }
 
     private Map<String, Integer> contarPacientesPorEspecialistaId(Long especialistaId) {
@@ -211,6 +219,54 @@ public class FilaWebSocketController {
         return Map.of("QuantidadePacientesEmEspera", contagem);
     }
 
+
+    @MessageMapping("/marcarPresenca")
+    @SendTo("/topic/presencaConfirmada")
+    public CompletableFuture<Map<String, String>> marcarPresenca(Map<String, Object> payload) {
+        String codigoCodigo = (String) payload.get("codigoCodigo");
+        Long idAgendamento = Long.valueOf(payload.get("idAgendamento").toString());
+
+        return CompletableFuture.supplyAsync(() -> {
+            // Iniciar a lógica de forma atômica
+            return marcarPresencaComTransacao(codigoCodigo, idAgendamento);
+        }, asyncExecutor);
+    }
+
+    @Transactional
+    public Map<String, String> marcarPresencaComTransacao(String codigoCodigo, Long idAgendamento) {
+        var pacienteOpt = pacienteRepository.findByCodigoCodigo(codigoCodigo);
+
+        if (pacienteOpt.isPresent()) {
+            Paciente objPaciente = pacienteOpt.get();
+
+            // Verificar se o paciente já está na fila de espera
+            boolean jaEmEspera = agendamentoRepository.existsByPacienteAndStatus(objPaciente, StatusAgendamento.EM_ESPERA);
+            if (jaEmEspera) {
+                return Map.of("status", "CONFLICT", "message", "Paciente já na fila.");
+            }
+
+            // Buscar agendamento associado
+            Optional<Agendamento> agendamentoOpt = agendamentoRepository.findById(idAgendamento);
+            if (agendamentoOpt.isPresent()) {
+                Agendamento objAgendamento = agendamentoOpt.get();
+                objAgendamento.setStatus(StatusAgendamento.EM_ESPERA);
+                objAgendamento.setDataHoraChegada(LocalDateTime.now());
+                agendamentoRepository.save(objAgendamento);
+
+                // Confirmar presença do paciente
+                objPaciente.setPresencaConfirmado(true);
+                pacienteRepository.save(objPaciente);
+
+                return Map.of("status", "OK", "message", "Presença confirmada.");
+            } else {
+                return Map.of("status", "NOT_FOUND", "message", "Agendamento não encontrado.");
+            }
+        } else {
+            return Map.of("status", "NOT_FOUND", "message", "Paciente não encontrado.");
+        }
+    }
+
+    /*
     // Confirmar presença de um paciente
     @MessageMapping("/marcarPresenca")
     @SendTo("/topic/presencaConfirmada")
@@ -248,4 +304,6 @@ public class FilaWebSocketController {
             }
         }).join();
     }
+
+     */
 }

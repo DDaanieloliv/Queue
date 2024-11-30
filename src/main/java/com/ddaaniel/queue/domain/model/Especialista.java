@@ -34,7 +34,7 @@ public class Especialista {
     @Enumerated(EnumType.STRING)
     private Sexo sexo;
 
-    @Valid
+    //@Valid
     @OneToMany(mappedBy = "especialista", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private List<Indisponibilidade> indisponibilidades = new ArrayList<>();  // Relacionamento com Indisponibilidade
 

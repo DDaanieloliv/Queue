@@ -20,7 +20,7 @@ public class Indisponibilidade {
     @JoinColumn(name = "especialista_id", nullable = false)
     private Especialista especialista;
 
-    @NotEmpty(message = "{campo.indisponibilidade.obrigatorio}")
+    //@NotEmpty(message = "{campo.indisponibilidade.obrigatorio}")
     private LocalDate data;  // Data de disponibilidade
 
 }

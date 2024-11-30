@@ -87,7 +87,10 @@ public class QueueController {
 
     @PostMapping("/agendar")
     @Operation(summary = "Creating scheduling and registering patient.")
-    public ResponseEntity<?> adicionarAgendamento(@Valid @RequestBody Agendamento agendamento) {
+    public CompletableFuture<ResponseEntity<?>> adicionarAgendamento(@Valid @RequestBody Agendamento agendamento) {
+
+        return CompletableFuture.supplyAsync( () -> {
+
         try {
             // Chama o serviço para processar o agendamento
             agendamentoService.adicionarAgendamento(agendamento);
@@ -95,6 +98,8 @@ public class QueueController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
+
+    }, asyncExecutor);
     }
 
 
@@ -121,10 +126,11 @@ public class QueueController {
 
     @GetMapping("/pegarAgendamentos")
     //@Operation(summary = "Taking all the scheduled schedules for today.")
-    public List<AgendamentoDTO> getAgendaamentosByCodigoCodigo(@RequestParam String codigoCodigo) {
+    public CompletableFuture<List<AgendamentoDTO>> getAgendaamentosByCodigoCodigo(@RequestParam String codigoCodigo) {
 
-        return agendamentoService.getAllAgendamentosByCodigoCodigo(codigoCodigo);
-
+        return CompletableFuture.supplyAsync( () -> {
+            return agendamentoService.getAllAgendamentosByCodigoCodigo(codigoCodigo);
+        }, asyncExecutor);
     }
 
 
@@ -245,9 +251,11 @@ public class QueueController {
 
     @GetMapping("/primeiroPacienteEspecialista/{especialistaId}")
     @Operation(summary = "Seeking the first patient on hold and the patient being cared for now.")
-    public ResponseEntity<Map<String, Object>> getPrimeiroPacientePorEspecialista(
+    public CompletableFuture<ResponseEntity<Map<String, Object>>> getPrimeiroPacientePorEspecialista(
             @PathVariable Long especialistaId) {
-        return ResponseEntity.ok(getPrimeiroPacientePorEspecialistaId(especialistaId));
+        return CompletableFuture.supplyAsync( () -> {
+                return ResponseEntity.ok(getPrimeiroPacientePorEspecialistaId(especialistaId));
+        }, asyncExecutor);
     }
 
     // Método auxiliar para obter os pacientes por ID do especialista
@@ -445,46 +453,49 @@ public class QueueController {
      */
     @PutMapping("/adicionarObservacaoProntuario")
     @Operation(summary = "Edits the patient's report that is in attendance.")
-    public ResponseEntity<String> adicionarObservacaoProntuario(
+    public CompletableFuture<ResponseEntity<String>> adicionarObservacaoProntuario(
             @RequestParam Long pacienteId,
             @RequestParam String novaObservacao) {
 
-        // Busca o paciente pelo ID
-        Optional<Paciente> pacienteOpt = pacienteRepository.findById(pacienteId);
+        return CompletableFuture.supplyAsync( () -> {
+            // Busca o paciente pelo ID
+            Optional<Paciente> pacienteOpt = pacienteRepository.findById(pacienteId);
 
-        if (pacienteOpt.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body("Paciente não encontrado.");
-        }
+            if (pacienteOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body("Paciente não encontrado.");
+            }
 
-        Paciente paciente = pacienteOpt.get();
+            Paciente paciente = pacienteOpt.get();
 
-        // Atualiza o campo prontuario com a nova observação
-        String prontuarioAtualizado = paciente.getProntuario() == null
-                ? novaObservacao
-                : paciente.getProntuario() + "\n" + novaObservacao;
+            // Atualiza o campo prontuario com a nova observação
+            String prontuarioAtualizado = paciente.getProntuario() == null
+                    ? novaObservacao
+                    : paciente.getProntuario() + "\n" + novaObservacao;
 
-        paciente.setProntuario(prontuarioAtualizado);
+            paciente.setProntuario(prontuarioAtualizado);
 
-        // Busca o agendamento do paciente que está em atendimento
-        Optional<Agendamento> agendamentoOpt = agendamentoRepository
-                .findByPacienteAndStatus(paciente, StatusAgendamento.EM_ATENDIMENTO);
+            // Busca o agendamento do paciente que está em atendimento
+            Optional<Agendamento> agendamentoOpt = agendamentoRepository
+                    .findByPacienteAndStatus(paciente, StatusAgendamento.EM_ATENDIMENTO);
 
-        if (agendamentoOpt.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("Nenhum agendamento em atendimento encontrado para este paciente.");
-        }
+            if (agendamentoOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body("Nenhum agendamento em atendimento encontrado para este paciente.");
+            }
 
-        Agendamento agendamento = agendamentoOpt.get();
+            Agendamento agendamento = agendamentoOpt.get();
 
-        // Atualiza o status do agendamento para CONCLUIDO
-        agendamento.setStatus(StatusAgendamento.CONCLUIDO);
+            // Atualiza o status do agendamento para CONCLUIDO
+            agendamento.setStatus(StatusAgendamento.CONCLUIDO);
 
-        // Salva as alterações no banco de dados
-        pacienteRepository.save(paciente);
-        agendamentoRepository.save(agendamento);
+            // Salva as alterações no banco de dados
+            pacienteRepository.save(paciente);
+            agendamentoRepository.save(agendamento);
 
-        return ResponseEntity.ok("Observação adicionada ao prontuário e agendamento concluído com sucesso.");
+            return ResponseEntity.ok("Observação adicionada ao prontuário e agendamento concluído com sucesso.");
+
+        }, asyncExecutor);
     }
 
 
