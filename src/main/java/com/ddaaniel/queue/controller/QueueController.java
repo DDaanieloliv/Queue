@@ -248,7 +248,77 @@ public class QueueController {
         }, asyncExecutor);
     }
 
+    @GetMapping("/primeirosPacientesDeTodosEspecialistas")
+    @Operation(summary = "Retrieve the first patient on hold and the patient being cared for now for all specialists.")
+    public CompletableFuture<ResponseEntity<List<Map<String, Object>>>> getPrimeirosPacientesPorEspecialistas() {
+        return CompletableFuture.supplyAsync(() ->
+                        ResponseEntity.ok(getPrimeirosPacientesPorEspecialistasInfo()),
+                asyncExecutor
+        );
+    }
 
+    // Método auxiliar para obter os pacientes por todos os especialistas
+    private List<Map<String, Object>> getPrimeirosPacientesPorEspecialistasInfo() {
+        List<Map<String, Object>> especialistasPacientesInfo = new ArrayList<>();
+
+        // Busca todos os especialistas cadastrados no sistema
+        List<Especialista> especialistas = especialistaRepository.findAll();
+
+        for (Especialista especialista : especialistas) {
+            Map<String, Object> especialistaInfo = new HashMap<>();
+            Map<String, Object> pacienteInfo = new HashMap<>();
+
+            Long especialistaId = especialista.getId();
+
+            // Buscar agendamentos com status EM_ESPERA para o especialista
+            List<Agendamento> agendamentosEmEspera = agendamentoRepository
+                    .findAllByEspecialista_IdAndStatusAndPaciente_PresencaConfirmado(
+                            especialistaId, StatusAgendamento.EM_ESPERA, true);
+
+            Optional<Agendamento> primeiroEmEspera = agendamentosEmEspera.stream()
+                    .sorted(Comparator.comparingInt((Agendamento a) ->
+                                    a.getPaciente().getPrioridade().getPrioridade())
+                            .thenComparing(Agendamento::getDataAgendamento))
+                    .findFirst();
+
+            // Buscar agendamentos com status EM_ATENDIMENTO para o especialista
+            List<Agendamento> agendamentosEmAtendimento = agendamentoRepository
+                    .findAllByEspecialista_IdAndStatusAndPaciente_PresencaConfirmado(
+                            especialistaId, StatusAgendamento.EM_ATENDIMENTO, true);
+
+            Optional<Agendamento> primeiroEmAtendimento = agendamentosEmAtendimento.stream()
+                    .findFirst();
+
+            // Dados do paciente em espera (ou null se não houver)
+            pacienteInfo.put("PacienteEmEspera", primeiroEmEspera.map(agendamento -> {
+                Map<String, String> esperaInfo = new HashMap<>();
+                esperaInfo.put("Nome", agendamento.getPaciente().getNomeCompleto());
+                esperaInfo.put("Status", agendamento.getStatus().name());
+                return esperaInfo;
+            }).orElse(null));
+
+            // Dados do paciente em atendimento (ou null se não houver)
+            pacienteInfo.put("PacienteEmAtendimento", primeiroEmAtendimento.map(agendamento -> {
+                Map<String, String> atendimentoInfo = new HashMap<>();
+                atendimentoInfo.put("Nome", agendamento.getPaciente().getNomeCompleto());
+                atendimentoInfo.put("Status", agendamento.getStatus().name());
+                return atendimentoInfo;
+            }).orElse(null));
+
+            // Adicionar informações do especialista
+            especialistaInfo.put("EspecialistaId", especialistaId);
+            especialistaInfo.put("Nome", especialista.getNome());
+            especialistaInfo.put("TipoEspecialista", especialista.getTipoEspecialista().name());
+            especialistaInfo.put("Pacientes", pacienteInfo);
+
+            especialistasPacientesInfo.add(especialistaInfo);
+        }
+
+        return especialistasPacientesInfo;
+    }
+
+
+/*
     @GetMapping("/primeiroPacienteEspecialista/{especialistaId}")
     @Operation(summary = "Seeking the first patient on hold and the patient being cared for now.")
     public CompletableFuture<ResponseEntity<Map<String, Object>>> getPrimeiroPacientePorEspecialista(
@@ -300,6 +370,8 @@ public class QueueController {
         return pacienteInfo;
     }
 
+
+ */
 
     @GetMapping("/contagemEspecialista/{especialistaId}")
     @Operation(summary = "Counts the amount of patient waiting for consultation.")
